@@ -135,6 +135,8 @@ def calculate_indicators(symbol,df):
     df['RSI'] = ta.momentum.RSIIndicator(df['Close'], window=14).rsi()
     df['SMA_20'] = df['Close'].rolling(window=20).mean()
     df['EMA_20'] = df['Close'].ewm(span=20, adjust=False).mean()
+    df['Volume_Trend_Daily'] = detect_volume_trend(df, window=20, threshold=1.5)
+    df['Volume_Trend_Weekly'] = detect_weekly_volume_trend(symbol, window=5, threshold=1.5)
     return df
 
 
@@ -189,71 +191,50 @@ def apply_macd_font_style(row):
         return f'<span style="color: red;">{row["MACD Crossover"]}</span>'
     return row['MACD Crossover']
 
-# Function to identify various candlestick patterns
-# def identify_candlestick_patterns(symbol,data):
-#     stock = yf.Ticker(symbol)
-#     # data_weekly = stock.history(period="1y")
-#     data_weekly = stock.history(period="1y", interval="1wk")
-#     print(data_weekly)
-#     # Bullish Engulfing Pattern
-#     data['Bullish_Engulfing'] = (
-#         (data_weekly['Open'].shift(1) > data_weekly['Close'].shift(1)) &
-#         (data_weekly['Open'] < data_weekly['Close']) &
-#         (data_weekly['Open'] < data_weekly['Close'].shift(1)) &
-#         (data_weekly['Close'] > data_weekly['Open'].shift(1))
-#     )
+# Function to detect daily volume trend
+def detect_volume_trend(df, window=10, threshold=1.5):
+    df = df.copy()
+    df['Volume_Avg'] = df['Volume'].rolling(window=window).mean()
+    latest_volume = df['Volume'].iloc[-1]
+    avg_volume = df['Volume_Avg'].iloc[-1]
     
-#     # Bearish Engulfing Pattern
-#     data['Bearish_Engulfing'] = (
-#         (data_weekly['Open'].shift(1) < data_weekly['Close'].shift(1)) &
-#         (data_weekly['Open'] > data_weekly['Close']) &
-#         (data_weekly['Open'] > data_weekly['Close'].shift(1)) &
-#         (data_weekly['Close'] < data_weekly['Open'].shift(1))
-#     )
+    if avg_volume == 0:
+        return "Normal Volume"
     
-#     # Doji Pattern
-#     data['Doji'] = abs(data_weekly['Open'] - data_weekly['Close']) < (data_weekly['High'] - data_weekly['Low']) * 0.1
+    if latest_volume > avg_volume * threshold:
+        return "Increasing Volume"
+    elif latest_volume < avg_volume / threshold:
+        return "Decreasing Volume"
+    else:
+        return "Normal Volume"
 
-#     # Hammer Pattern
-#     data['Hammer'] = (
-#         (data_weekly['Close'] > data_weekly['Open']) &
-#         ((data_weekly['Low'] - data_weekly['Open']) > 2 * abs(data_weekly['Open'] - data_weekly['Close'])) &
-#         (abs(data_weekly['High'] - data_weekly['Close']) < 0.1 * abs(data_weekly['Open'] - data_weekly['Low']))
-#     )
+# Function to detect weekly volume trend
+def detect_weekly_volume_trend(symbol, window=10, threshold=1.5):
+    stock = yf.Ticker(symbol)
+    data_weekly = stock.history(period="1y", interval="1wk")
+    if data_weekly.empty:
+        return "Normal Volume"
+    avg_volume = data_weekly['Volume'].rolling(window=window).mean().iloc[-1]
+    latest_volume = data_weekly['Volume'].iloc[-1]
     
-#     # Inverted Hammer Pattern
-#     data['Inverted_Hammer'] = (
-#         (data_weekly['Close'] > data_weekly['Open']) &
-#         ((data_weekly['High'] - data_weekly['Close']) > 2 * abs(data_weekly['Open'] - data_weekly['Close'])) &
-#         (abs(data_weekly['Low'] - data_weekly['Open']) < 0.1 * abs(data_weekly['High'] - data_weekly['Close']))
-#     )
+    if avg_volume == 0:
+        return "Normal Volume"
     
-#     # Shooting Star Pattern
-#     data['Shooting_Star'] = (
-#         (data_weekly['Open'] > data_weekly['Close']) &
-#         ((data_weekly['High'] - data_weekly['Open']) > 2 * abs(data_weekly['Open'] - data_weekly['Close'])) &
-#         (abs(data_weekly['Low'] - data_weekly['Close']) < 0.1 * abs(data_weekly['High'] - data_weekly['Close']))
-#     )
+    if latest_volume > avg_volume * threshold:
+        return "Increasing Volume"
+    elif latest_volume < avg_volume / threshold:
+        return "Decreasing Volume"
+    else:
+        return "Normal Volume"
 
-#     # Morning Star Pattern (3 candles)
-#     data['Morning_Star'] = (
-#         (data_weekly['Close'].shift(2) > data_weekly['Open'].shift(2)) &  # First candle is bullish
-#         (data_weekly['Close'].shift(1) < data_weekly['Open'].shift(1)) &  # Second candle is bearish
-#         (data_weekly['Open'] < data_weekly['Close'].shift(1)) &  # Third candle opens above second
-#         (data_weekly['Close'] > data_weekly['Open']) &  # Third candle is bullish
-#         (data_weekly['Close'] > (data_weekly['Close'].shift(2) + data_weekly['Open'].shift(2)) / 2)  # Third candle closes above midpoint of first candle
-#     )
-
-#     # Evening Star Pattern (3 candles)
-#     data['Evening_Star'] = (
-#         (data_weekly['Close'].shift(2) < data_weekly['Open'].shift(2)) &  # First candle is bearish
-#         (data_weekly['Close'].shift(1) > data_weekly['Open'].shift(1)) &  # Second candle is bullish
-#         (data_weekly['Open'] > data_weekly['Close'].shift(1)) &  # Third candle opens below second
-#         (data_weekly['Close'] < data_weekly['Open']) &  # Third candle is bearish
-#         (data_weekly['Close'] < (data_weekly['Close'].shift(2) + data_weekly['Open'].shift(2)) / 2)  # Third candle closes below midpoint of first candle
-#     )
-
-#     return data
+# Function to apply font style based on Volume Trend
+def apply_volume_trend_font_style(row, trend_column):
+    trend = row[trend_column]
+    if trend == "Increasing Volume":
+        return f'<span style="color: green;">{trend}</span>'
+    elif trend == "Decreasing Volume":
+        return f'<span style="color: red;">{trend}</span>'
+    return trend  # Normal Volume
 
 def identify_candlestick_patterns(symbol,data):
     stock = yf.Ticker(symbol)
@@ -363,13 +344,15 @@ def display_stock_data(stock_list, title):
                 # "High": current_data['High'],
                 # "Low": current_data['Low'],
                 # "Close": current_data['Close'],
-                "Volume": current_data['Volume'],
+                # "Volume": current_data['Volume'],
                 "52-Week High": data['High'].max(),
                 "52-Week Low": data['Low'].min(),
                 "RSI_Daily": current_data['RSI'],
                 "RSI_Weekly": RSI_Weekly,
                 # "MACD": current_data['MACD_line'],
                 "MACD Crossover": "Bullish Crossover" if current_data['MACD_Crossover'] else "Bearish Crossover" if current_data['MACD_Crossunder'] else "No Crossover",
+                "Volume Trend Daily": current_data['Volume_Trend_Daily'],
+                "Volume Trend Weekly": current_data['Volume_Trend_Weekly'],
                 "Bullish_Engulfing": 'Bullish_Engulfing' if current_data['Bullish_Engulfing'] else 0,
                 "Bearish_Engulfing": 'Bearish_Engulfing' if current_data['Bearish_Engulfing'] else 0,
                 "Doji": 'Doji' if current_data['Doji'] else 0,
@@ -387,6 +370,8 @@ def display_stock_data(stock_list, title):
         df['RSI_Daily'] = df.apply(apply_font_style, axis=1)
         df['RSI_Weekly'] = df.apply(apply_weekly_rsi_font_style, axis=1)
         df['MACD Crossover'] = df.apply(apply_macd_font_style,axis=1)
+        df['Volume Trend Daily'] = df.apply(lambda row: apply_volume_trend_font_style(row, 'Volume Trend Daily'), axis=1)
+        df['Volume Trend Weekly'] = df.apply(lambda row: apply_volume_trend_font_style(row, 'Volume Trend Weekly'), axis=1)
         
     # # Render the dataframe with links
     st.write(df.to_html(escape=False), unsafe_allow_html=True)
