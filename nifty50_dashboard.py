@@ -339,17 +339,8 @@ def display_stock_data(stock_list, title):
             stock_data = {
                 "Symbol": create_stock_link(stock[0]),
                 "Industry": stock[1],
-                "Current Price": current_data['Close'],
-                # "Open": current_data['Open'],
-                # "High": current_data['High'],
-                # "Low": current_data['Low'],
-                # "Close": current_data['Close'],
-                # "Volume": current_data['Volume'],
-                "52-Week High": data['High'].max(),
-                "52-Week Low": data['Low'].min(),
                 "RSI_Daily": current_data['RSI'],
                 "RSI_Weekly": RSI_Weekly,
-                # "MACD": current_data['MACD_line'],
                 "MACD Crossover": "Bullish Crossover" if current_data['MACD_Crossover'] else "Bearish Crossover" if current_data['MACD_Crossunder'] else "No Crossover",
                 "Volume Trend Daily": current_data['Volume_Trend_Daily'],
                 "Volume Trend Weekly": current_data['Volume_Trend_Weekly'],
@@ -360,7 +351,16 @@ def display_stock_data(stock_list, title):
                 "Inverted_Hammer":'Inverted_Hammer' if current_data['Inverted_Hammer'] else 0,
                 "Shooting_Star": 'Shooting_Star' if current_data['Shooting_Star'] else 0,
                 "Morning_Star": 'Morning_Star' if current_data['Morning_Star'] else 0,
-                "Evening_Star": 'Evening_Star' if current_data['Evening_Star'] else 0
+                "Evening_Star": 'Evening_Star' if current_data['Evening_Star'] else 0,
+                "Current Price": current_data['Close'],
+                "Open": current_data['Open'],
+                "High": current_data['High'],
+                "Low": current_data['Low'],
+                "Close": current_data['Close'],
+                "Volume": current_data['Volume'],
+                "52-Week Low": data['Low'].min(),
+                "52-Week High": data['High'].max(),
+                # "MACD": current_data['MACD_line'],
             }
             stock_data_list.append(stock_data)
 
